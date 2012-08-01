@@ -17,13 +17,17 @@ your files and folders around as-per your edits.
 
 **You should review that shell script very carefully before running it.**
 
+### Install
+
+You can install using `gem install fled`.
+
 ### Philosophy
 
 `fled` only generates text, it does not perform any operation directly.
 
-The design optimises for making the edits very simple. The consequence of
-this is that very small edits can have large consequences, which makes
-this a **very dangerous** tool. But so is `rm` and the rest of the shell anyway...
+The design optimises for making the edits very simple. This means that very small
+edits can have large consequences, which makes this a **very dangerous** tool.
+But so is `rm` and the rest of the shell anyway...
 
 ### Caveats
 
