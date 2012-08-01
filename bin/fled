@@ -1,0 +1,152 @@
+#!/usr/bin/env ruby
+require 'yaml'
+require 'optparse'
+require 'shellwords'
+begin
+  require 'fled'
+rescue LoadError => e
+  $:.unshift File.join(File.dirname(__FILE__),'../lib')
+  require 'fled'
+end
+
+class App
+  DEFAULT_SKIP_FOLDERS_RX = ['^\..*', '.*\.app$']
+  DEFAULT_SKIP_FOLDERS = ['.svn', '_svn', '.git', 'CVS', '.hg']
+  DEFAULT_SKIP_FILES_RX = ['^\..*', '.*~$']
+  DEFAULT_SKIP_FILES = [".DS_Store", "Thumbs.db", "Temporary Items"]
+  
+  attr_reader :options
+
+  def initialize(arguments = ARGV)
+    @arguments = arguments.dup
+    @options = {}
+    @options[:verbose] = false
+  end
+
+  def run
+    if parsed_options?
+      if options[:output_options]
+        output_options
+        exit 0
+      end
+      output_version if @options[:verbose]
+      $stderr.puts "Starting on path #{@base_path} at #{DateTime.now}" if @options[:verbose]
+      builder = FlEd::ListingBuilder.new()
+      filter = DTC::Utils::FilteringFileVisitor.new builder, @options
+      DTC::Utils::FileVisitor.browse @base_path, filter
+      content = builder.listing.to_s
+      if content == ""
+        $stderr.puts "No files/folders found"
+        exit 1
+      end
+      result = DTC::Utils::InteractiveEditor::edit(content, ".yaml")
+      if result.nil? || result.strip == "" || result == content
+        $stderr.puts "No changes - aborting" ; exit 2
+      end
+      target_listing = FlEd::FileListing.parse(result)
+      ops = target_listing.operations_from!(builder.listing)
+      if ops.empty?
+        $stderr.puts "No changes - aborting" ; exit 2
+      end
+      ops = [[:pushd, @base_path]] + ops + [[:popd]] unless @options[:no_pushd]
+      puts FlEd::operation_list_to_bash(ops).join("\n")
+      $stderr.puts "\nFinished at #{DateTime.now}" if @options[:verbose]
+    else
+      output_usage
+    end
+  rescue SystemExit => e
+    raise
+  rescue Exception => e
+    puts e
+    output_usage
+    exit 127
+  end
+  protected
+
+    def self.default_options
+      ({
+        :max_depth => -1,
+        :excluded_files =>
+          DEFAULT_SKIP_FILES_RX +
+          DEFAULT_SKIP_FILES.map { |e| '\A' + Regexp.escape(e) + '\z' },
+        :excluded_directories =>
+          DEFAULT_SKIP_FOLDERS_RX +
+          DEFAULT_SKIP_FOLDERS.map { |e| '\A' + Regexp.escape(e) + '\z' },
+      })
+    end
+
+    def parsed_options?
+      options = {}
+      @optionparser = OptionParser.new do |opts|
+        opts.banner = "Usage: #{$0} [options] [base_path]"
+        opts.separator ""
+        opts.separator "Selection"
+
+        opts.on('-i', '--include RX', String, "Only include files and folders that match any such regexp") { |rx| (options[:included] ||= []) << rx }
+        opts.on('--include-dirs RX', String, "Only include folders that match any such regexp") { |rx| (options[:included_directories] ||= []) << rx }
+        opts.on('--include-files RX', String, "Only include files that match any such regexp") { |rx| (options[:included_files] ||= []) << rx }
+        opts.on('-x', '--exclude RX', String, "Exclude files and folders that match any such regexp") { |rx| (options[:excluded] ||= []) << rx }
+        opts.on('--exclude-dirs RX', String, "Exclude folders that match any such regexp") { |rx| (options[:excluded_directories] ||= []) << rx }
+        opts.on('--exclude-files RX', String, "Exclude files that match any such regexp") { |rx| (options[:excluded_files] ||= []) << rx }
+        opts.on('-a', '--no-exclude', "Empties all the lists of exclusions") do
+          options[:excluded] = []
+          options[:excluded_files] = []
+          options[:excluded_directories] = []
+        end
+        opts.on('-r', '--recursive', "Scan directories recursively") { options[:max_depth] ||= -1 }
+        opts.on("-d", "--depth N", Integer, "Set maximum recursion to N subfolders. (0=no recursion)") { |n| options[:max_depth] = n.to_i }
+
+        opts.separator ""
+        opts.separator "Script"
+        opts.on('--no-pushd', "Do not include pushd/popd pair in script")    { options[:no_pushd] = true }
+
+        opts.separator ""
+        opts.separator "General"
+        opts.on_tail('-l', '--load PATH.YAML', "Merge in the specified yaml files options")    { |file|
+          File.open(file) { |file| options = options.merge(YAML.load(file)) }
+        }
+        opts.on_tail('--options', "Show options as interpreted and exit without doing anything")    { options[:output_options] = true }
+        opts.on('-v', '--verbose', "Display more information about what the tool is doing...")    { options[:verbose] = true }
+        opts.on_tail('--version', "Show version of this tool")    { output_version ; exit 0 }
+        opts.on_tail('-h', '--help', "Show this help message")       { output_help ; exit 0 }
+      end
+      @optionparser.parse!(@arguments)
+      @base_path = File.expand_path(@arguments.first || options[:base_path] || ".")
+      raise RuntimeError, "No more than one argument should be present" if @arguments.count > 1
+      @options = self.class.default_options.merge(options)
+      true
+    end
+    
+    def output_options out = $stdout
+      opts = @options.dup
+      opts.delete(:output_options)
+      out.puts opts.to_yaml
+    end
+    
+    def output_help
+      output_version
+      $stderr.puts ""
+      $stderr.puts "  Disclaimer: The author is not responsible for anything related"
+      $stderr.puts "    to this tool. This is quite powerful and slight mistakes can"
+      $stderr.puts "    lead to loss of data or worse. The author recommends you not"
+      $stderr.puts "    use this."
+      $stderr.puts ""
+      $stderr.puts "  Operation:"
+      $stderr.puts "    - Generate list of files and folder"
+      $stderr.puts "    - Open in your favorite ($EDITOR) text editor"
+      $stderr.puts "    - You edit file names in the editor, then save and close"
+      $stderr.puts "    - The file list is reloaded and compared to the original"
+      $stderr.puts "    - A shell script to re-organise the files/folders is printed"
+      $stderr.puts ""
+      output_usage
+    end
+    
+    def output_usage
+      $stderr.puts @optionparser
+    end
+
+    def output_version
+      $stderr.puts "#{File.basename(__FILE__)} version #{VERSION}"
+    end
+end
+App.new.run
