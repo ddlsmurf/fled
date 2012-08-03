@@ -89,7 +89,7 @@ module FlEd
         next if path.any? { |o| o[:error] }
         if target[:name] != "" && !target[:uid]
           operations << [:mk, self.path_of(target).map { |o| o[:name] }]
-          fake_source = {:name => target[:name]}
+          fake_source = {:name => target[:name], :dir => true}
           fake_source[:parent] = running_source[path.last[:source][:uid]] unless path.empty?
           target_uid = "new_#{running_source.count}"
           target_uid += "_" while @objects_by_id[target_uid] || running_source[target_uid]
@@ -111,11 +111,16 @@ module FlEd
             if new_name != target[:name]
               pending_renames << [:renamed, target, target[:name]]
             end
+            if (target_parent = target[:parent])
+              until !target_parent || !target_parent[:source] || target_parent[:source][:dir]
+                target_parent = target_parent[:parent]
+              end
+            end
             source_path = running_source.path_of(source).map { |o| o[:name] }
             target[:name] = source[:name] = new_name
             operations << [:moved,
               source_path,
-              self.path_of(target).map { |o| o[:name] }
+              self.path_of(target_parent).map { |o| o[:name] } + [target[:name]]
             ]
             if target[:parent]
               source[:parent] = running_source[target[:parent][:uid]]

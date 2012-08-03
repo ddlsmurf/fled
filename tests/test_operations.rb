@@ -165,6 +165,33 @@ class TestOperations < Test::Unit::TestCase
     TEST
     assert_equal [[:mv, 'folder/sous/truc', 'truc']], ops
   end
+  def test_reparent_under_file
+    ops = @fs.operations_if_edited_as <<-TEST
+      folder :0
+        sous :1
+          truc :2
+            truc.txt :3
+    TEST
+    assert_equal [[:mv, "folder/truc.txt", "folder/sous/truc.txt"]], ops
+  end
+  def test_reparent_under_file_at_root
+    ops = TestFS.new do
+      folder(0) {
+        file_one(1)
+        file_two(2)
+        file_three(3)
+      }
+    end.operations_if_edited_as <<-TEST
+      file_one :1
+        file_two :2
+          file_three :3
+    TEST
+    assert_equal [
+      [:mv, "folder/file_one", "file_one"],
+      [:mv, "folder/file_two", "file_two"],
+      [:mv, "folder/file_three", "file_three"],
+    ], ops
+  end
   def test_reparent_impact_on_mkdir
     ops = @fs.operations_if_edited_as <<-TEST
       folder :0
