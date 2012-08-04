@@ -4,7 +4,7 @@ require 'shellwords'
 module FlEd
   require 'fled/file_listing'
 
-  VERSION = '0.0.1'
+  VERSION = '0.0.2'
 
   def self.operation_list_to_bash ops
     ops = ops.map do |op|
