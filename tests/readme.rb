@@ -75,11 +75,6 @@ end
 readme = ExampleDSLWriter.run do
   h1 "FlEd", '`fled` lets you organise your files and folders in your favourite editor'
 
-  h2 "Disclaimer", <<-MD
-      Warning: This is a very dangerous tool. The author recommends you do not
-        use it. The author cannot be held responsible in any case.
-  MD
-
   h2 "Introduction", <<-MD
   `fled` enumerates a folder and its files, and generates a text listing.
   You can then edit that listing in your favourite editor, and save changes.
@@ -254,7 +249,15 @@ readme = ExampleDSLWriter.run do
           file.txt       :3
   EXAMPLE
 
+  h2 "Disclaimer", <<-MD
+      Warning: This is a very dangerous tool. The author recommends you do not
+        use it. The author cannot be held responsible in any case.
+  MD
+
   h2 "Contributors"
   li "[Eric Doughty-Papassideris](http://github.com/ddlsmurf)"
+
+  h2 "Licence", "[GPLv3](http://www.gnu.org/licenses/gpl-3.0.html)"
+
 end
 puts readme

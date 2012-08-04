@@ -3,11 +3,6 @@
 
 `fled` lets you organise your files and folders in your favourite editor
 
-## Disclaimer
-
-Warning: This is a very dangerous tool. The author recommends you do not
-  use it. The author cannot be held responsible in any case.
-
 ## Introduction
 
 `fled` enumerates a folder and its files, and generates a text listing.
@@ -228,7 +223,15 @@ Generates:
     mv folder sub_sub_folder/sub_folder/folder
     mv sub_sub_folder/file.txt sub_sub_folder/sub_folder/folder/file.txt
 
+## Disclaimer
+
+Warning: This is a very dangerous tool. The author recommends you do not
+  use it. The author cannot be held responsible in any case.
+
 ## Contributors
 
 - [Eric Doughty-Papassideris](http://github.com/ddlsmurf)
 
+## Licence
+
+[GPLv3](http://www.gnu.org/licenses/gpl-3.0.html)
