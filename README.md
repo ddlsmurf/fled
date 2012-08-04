@@ -34,6 +34,10 @@ cases defined, any help is much appreciated.
 
 You should be scared when using `fled`.
 
+### Test status
+
+[![Build Status](https://secure.travis-ci.org/ddlsmurf/fled.png?branch=master&this_url_now_ends_with=.png)](http://travis-ci.org/ddlsmurf/fled)
+
 ### Examples
 
 Print help text and option list
@@ -63,9 +67,9 @@ Add options to a command (`mkdir`, `mv`, `rm` or `rmdir`)
 ## Listing Format
 
     folder/                 :0
+      file_one              :1
       folder_two/           :2
         file_three          :3
-      file_one              :1
 
 Each line of the listing is in the format *`[indentation]`* *`[name]`* `:`*`[uid]`*
 
@@ -187,8 +191,8 @@ These sort-of work, but are still rather experimental
 ### Swapping files
 
     folder/             :0
-      file_two          :2
       file_one          :1
+      file_two          :2
 
 When applying
 

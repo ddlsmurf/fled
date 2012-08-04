@@ -107,6 +107,8 @@ readme = ExampleDSLWriter.run do
     You should be scared when using `fled`.
   MD
 
+  h3 "Test status", "[![Build Status](https://secure.travis-ci.org/ddlsmurf/fled.png?branch=master&this_url_now_ends_with=.png)](http://travis-ci.org/ddlsmurf/fled)"
+
   h3 "Examples"
   [
     ["Print help text and option list", "fled --help"],
