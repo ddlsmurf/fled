@@ -17,6 +17,7 @@ module DTC
         @folders.pop
       end
       def self.browse path, visitor, max_depth = -1
+        return unless File.readable?(path)
         dir = Dir.new(path)
         return unless visitor.enter_folder path
         dir.each do |f|
