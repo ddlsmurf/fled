@@ -146,7 +146,7 @@ class App
     end
 
     def output_version
-      $stderr.puts "#{File.basename(__FILE__)} version #{VERSION}"
+      $stderr.puts "#{File.basename(__FILE__)} version #{FlEd::VERSION}"
     end
 end
 App.new.run
