@@ -227,6 +227,19 @@ Generates:
     mv folder sub_sub_folder/sub_folder/folder
     mv sub_sub_folder/file.txt sub_sub_folder/sub_folder/folder/file.txt
 
+## Changelog
+
+*Version v0.0.2*
+
+- Fix: Unreadable directories now ignored
+- Fix: Version display and DRYed
+- Fix: Moving files under files now moves up to parent folder of destination
+- Meta: Travis-CI integration
+
+*Version v0.0.1*
+
+- First version
+
 ## Disclaimer
 
 Warning: This is a very dangerous tool. The author recommends you do not
