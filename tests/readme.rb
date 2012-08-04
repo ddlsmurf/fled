@@ -251,6 +251,20 @@ readme = ExampleDSLWriter.run do
           file.txt       :3
   EXAMPLE
 
+  h2 "Changelog"
+  ({
+    'v0.0.1' => ['First version'],
+    'v0.0.2' => [
+      'Fix: Unreadable directories now ignored',
+      'Fix: Version display and DRYed',
+      'Fix: Moving files under files now moves up to parent folder of destination',
+      'Meta: Travis-CI integration',
+    ],
+  }).sort { |a, b| b[0] <=> a[0] }.each do |version, changes|
+    em "Version #{version}"
+    changes.each { |change| li change }
+  end
+
   h2 "Disclaimer", <<-MD
       Warning: This is a very dangerous tool. The author recommends you do not
         use it. The author cannot be held responsible in any case.
