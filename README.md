@@ -63,9 +63,9 @@ Add options to a command (`mkdir`, `mv`, `rm` or `rmdir`)
 ## Listing Format
 
     folder/                 :0
-      file_one              :1
       folder_two/           :2
         file_three          :3
+      file_one              :1
 
 Each line of the listing is in the format *`[indentation]`* *`[name]`* `:`*`[uid]`*
 
@@ -162,7 +162,7 @@ If an indent is forgotten:
 
 Generates:
 
-    mv folder/folder_two/file_three folder/file_one/file_three
+    mv folder/folder_two/file_three folder/file_three
 
 ### All together
 
@@ -187,8 +187,8 @@ These sort-of work, but are still rather experimental
 ### Swapping files
 
     folder/             :0
-      file_one          :1
       file_two          :2
+      file_one          :1
 
 When applying
 
