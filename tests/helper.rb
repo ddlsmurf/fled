@@ -12,7 +12,7 @@ class TestListingBuilder < FlEd::FileListingBuilder
   end
   def add name, uid
     @uid = uid
-    super name, current_path(name.to_s)
+    super name, full_path(name.to_s)
   end
 end
 

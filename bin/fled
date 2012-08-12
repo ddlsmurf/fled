@@ -14,7 +14,10 @@ class App
   DEFAULT_SKIP_FOLDERS = ['.svn', '_svn', '.git', 'CVS', '.hg']
   DEFAULT_SKIP_FILES_RX = ['^\..*', '.*~$']
   DEFAULT_SKIP_FILES = [".DS_Store", "Thumbs.db", "Temporary Items"]
-  
+  EXIT_REASONS = {
+    :nothing_to_list => ["No files/folders found", 1],
+    :nothing_edited => ["No changes - aborting", 2],
+  }
   attr_reader :options
 
   def initialize(arguments = ARGV)
@@ -30,27 +33,19 @@ class App
         exit 0
       end
       output_version if @options[:verbose]
-      $stderr.puts "Starting on path #{@base_path} at #{DateTime.now}" if @options[:verbose]
+      info "Starting on path #{@base_path} at #{DateTime.now}"
       builder = FlEd::FileListingBuilder.new()
-      filter = DTC::Utils::FilteringFileVisitor.new builder, @options
-      DTC::Utils::FileVisitor.browse @base_path, filter
-      content = builder.listing.to_s
-      if content == ""
-        $stderr.puts "No files/folders found"
-        exit 1
-      end
-      result = DTC::Utils::InteractiveEditor::edit(content, ".yaml")
-      if result.nil? || result.strip == "" || result == content
-        $stderr.puts "No changes - aborting" ; exit 2
-      end
-      target_listing = FlEd::FileListing.parse(result)
+      DTC::Utils::Visitor::Folder::accept builder, @base_path, @options
+      listing_text = builder.listing.to_s
+      die! :nothing_to_list if listing_text == ""
+      edited_listing = DTC::Utils::InteractiveEditor::edit(listing_text, ".yaml")
+      die! :nothing_edited if edited_listing.to_s.strip == "" || edited_listing == listing_text
+      target_listing = FlEd::FileListing.parse(edited_listing)
       ops = target_listing.operations_from!(builder.listing)
-      if ops.empty?
-        $stderr.puts "No changes - aborting" ; exit 2
-      end
+      die! :nothing_edited if ops.empty?
       ops = [[:pushd, @base_path]] + ops + [[:popd]] unless @options[:no_pushd]
       puts FlEd::operation_list_to_bash(ops).join("\n")
-      $stderr.puts "\nFinished at #{DateTime.now}" if @options[:verbose]
+      info "\nFinished at #{DateTime.now}"
     else
       output_usage
     end
@@ -125,28 +120,45 @@ class App
     
     def output_help
       output_version
-      $stderr.puts ""
-      $stderr.puts "  Disclaimer: The author is not responsible for anything related"
-      $stderr.puts "    to this tool. This is quite powerful and slight mistakes can"
-      $stderr.puts "    lead to loss of data or worse. The author recommends you not"
-      $stderr.puts "    use this."
-      $stderr.puts ""
-      $stderr.puts "  Operation:"
-      $stderr.puts "    - Generate list of files and folder"
-      $stderr.puts "    - Open in your favorite ($EDITOR) text editor"
-      $stderr.puts "    - You edit file names in the editor, then save and close"
-      $stderr.puts "    - The file list is reloaded and compared to the original"
-      $stderr.puts "    - A shell script to re-organise the files/folders is printed"
-      $stderr.puts ""
+      status DTC::Utils::Text::lines_without_indent <<-HELP_TEXT
+      
+        Disclaimer: The author is not responsible for anything related
+          to this tool. This is quite powerful and slight mistakes can
+          lead to loss of data or worse. The author recommends you not
+          use this.
+      
+        Operation:
+          - Generate list of files and folder
+          - Open in your favorite ($EDITOR) text editor
+          - You edit file names in the editor, then save and close
+          - The file list is reloaded and compared to the original
+          - A shell script to re-organise the files/folders is printed
+      
+      HELP_TEXT
       output_usage
     end
     
     def output_usage
-      $stderr.puts @optionparser
+      status @optionparser
     end
 
     def output_version
-      $stderr.puts "#{File.basename(__FILE__)} version #{FlEd::VERSION}"
+      status "#{File.basename(__FILE__)} version #{FlEd::VERSION}"
+    end
+
+    def status message
+      $stderr.puts message
+    end
+    def info message
+      status message if @options[:verbose]
+    end
+    def die! reason, exit_code = 1
+      if (message = EXIT_REASONS[reason])
+        exit_code = message[1] if exit_code == 1
+        reason = message[0]
+      end
+      status reason
+      exit exit_code
     end
 end
 App.new.run
