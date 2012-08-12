@@ -4,32 +4,32 @@ module DTC
       def depth ; @folders.nil? ? 0 : @folders.count ; end
       def current_path *args ; File.join(@folders + args) ; end
       attr_accessor :next_visitor
-      def enter_folder dir
-        return false unless next_visitor ? next_visitor.enter_folder(dir) : true
+      def enter dir
+        return false unless next_visitor ? next_visitor.enter(dir) : true
         (@folders ||= []) << dir
         true
       end
-      def visit_file name, full_path
-        next_visitor.visit_file(name, full_path) if next_visitor
+      def add name, full_path
+        next_visitor.add(name, full_path) if next_visitor
       end
-      def leave_folder
-        next_visitor.leave_folder if next_visitor
+      def leave
+        next_visitor.leave if next_visitor
         @folders.pop
       end
       def self.browse path, visitor, max_depth = -1
         return unless File.readable?(path)
         dir = Dir.new(path)
-        return unless visitor.enter_folder path
+        return unless visitor.enter path
         dir.each do |f|
           full_path = File.join(path, f)
           next if f == "." || f == ".."
           if File.directory? full_path
             self.browse(full_path, visitor, max_depth - 1) unless max_depth == 0
           else
-            visitor.visit_file f, full_path
+            visitor.add f, full_path
           end
         end
-        visitor.leave_folder
+        visitor.leave
       end
     end
     class FilteringFileVisitor < FileVisitor
@@ -43,15 +43,15 @@ module DTC
         @recurse = options[:max_depth] || -1
         self.next_visitor = listener
       end
-      def enter_folder dir
+      def enter dir
         return false unless include?(File.basename(dir), false)
         if (result = super) && !descend?(dir)
-          leave_folder
+          leave
           return false
         end
         result
       end
-      def visit_file name, full_path
+      def add name, full_path
         return false unless include?(name, true)
         super
       end

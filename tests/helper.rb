@@ -2,45 +2,33 @@
 $:.unshift File.join(File.dirname(__FILE__),'../lib')
 require 'fled'
 
-class PrintingFileVisitor < DTC::Utils::FileVisitor
-  def enter_folder dir
-    depth = self.depth
-    puts ("  " * depth) + (depth > 0 ? File.basename(dir) : dir)
-    super
-  end
-  def visit_file name, full_path
-    puts ("  " * depth) + name
-    super
-  end
-end
-
-class TestListingBuilder < FlEd::ListingBuilder
+class TestListingBuilder < FlEd::FileListingBuilder
   def next_uid
     @uid
   end
-  def enter_folder dir, uid = nil
+  def enter dir, uid = nil
     @uid = uid
-    super dir
+    super dir.to_s
   end
-  def visit_file name, uid
+  def add name, uid
     @uid = uid
-    super name, current_path(name)
+    super name, current_path(name.to_s)
   end
 end
 
 class TestFS
   def initialize &block
-    @root = DTC::Utils::DSLDSL::DSLHashWriter.write_static_tree_dsl(&block)
+    @root = DTC::Utils::Visitor::DSL::accept(DTC::Utils::Visitor::HashBuilder, &block).root
   end
   def receive visitor, root = @root
     root.each_pair do |name, val|
-      next if name == :options
+      next if name.nil?
       if val.is_a?(Array)
-        visitor.visit_file name, val[0]
+        visitor.add name, val[0]
       elsif val.is_a?(Hash)
-        if visitor.enter_folder(name, val[:options][0])
+        if visitor.enter(name, val[nil][0])
           receive(visitor, val)
-          visitor.leave_folder
+          visitor.leave
         end
       else
         raise RuntimeError, "Unknown value #{val.inspect}"
@@ -49,9 +37,9 @@ class TestFS
   end
   def new_builder
     builder = TestListingBuilder.new
-    builder.enter_folder("$")
+    builder.enter("$")
     receive builder
-    builder.leave_folder
+    builder.leave
     builder
   end
   def new_listing

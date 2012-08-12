@@ -31,7 +31,7 @@ class App
       end
       output_version if @options[:verbose]
       $stderr.puts "Starting on path #{@base_path} at #{DateTime.now}" if @options[:verbose]
-      builder = FlEd::ListingBuilder.new()
+      builder = FlEd::FileListingBuilder.new()
       filter = DTC::Utils::FilteringFileVisitor.new builder, @options
       DTC::Utils::FileVisitor.browse @base_path, filter
       content = builder.listing.to_s

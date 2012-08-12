@@ -1,4 +1,6 @@
 module FlEd
+  # In memory tree structure for storing
+  # a file-system
   class FileListing
     def initialize
       @objects_by_id = {}
@@ -80,6 +82,19 @@ module FlEd
     end
   end
   class FileListing # Shell operation list builder
+    # Generate a list of operations that
+    # would transform the `source_listing`
+    # into the receiver.
+    #
+    # Result is an array with each entry of
+    # the format:
+    #
+    # - `[:fail, reason_symbol, target]`
+    # - `[:warn, reason_symbol, target]`
+    # - `[:mk, [path components]]`
+    # - `[:moved, [source path components], [dest path components]]`
+    # - `[:renamed, [source path components], new name]`
+    # - `[:rm, [path components], source_object]`
     def operations_from! source_listing
       errors = []
       operations = []
@@ -205,61 +220,6 @@ module FlEd
         to_browse += [child]
       end
       to_browse.each { |child| breadth_first child, path + [child], &block }
-    end
-  end
-  class ListingBuilder < DTC::Utils::FileVisitor
-    attr_accessor :listing
-    def initialize listing = FileListing.new
-      @listing = listing
-    end
-    def add_object path, dir
-      uid = next_uid
-      name = File.basename(path)
-      object = @listing.add(uid,
-        :path => path,
-        :name => File.basename(path),
-        :parent => @object_stack.last,
-        :line => "#{"  " * self.depth}#{name}#{dir ? "/" : ""}"
-      )
-      object[:dir] = true if dir
-      object
-    end
-    def enter_folder dir
-      depth = self.depth
-      if self.depth == 0
-        @object_stack = []
-      else
-        @object_stack.push add_object(dir, true)
-      end
-      super
-    end
-    def visit_file name, full_path
-      add_object full_path, false
-      super
-    end
-    def leave_folder
-      @object_stack.pop
-      super
-    end
-    protected
-    def next_uid
-      @listing.count
-    end
-    def source_path source
-      res = []
-      while source
-        res.unshift target[:name]
-        target = target[:parent]
-      end
-      File.join(res)
-    end
-    def target_path target
-      res = []
-      while target
-        res.unshift target[:name]
-        target = target[:parent]
-      end
-      File.join(res)
     end
   end
 end

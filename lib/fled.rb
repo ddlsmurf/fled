@@ -3,9 +3,12 @@ require 'shellwords'
 
 module FlEd
   require 'fled/file_listing'
+  require 'fled/file_listing_builder'
 
   VERSION = '0.0.2'
 
+  # Convert file listing operation list
+  # to bash-script friendly script
   def self.operation_list_to_bash ops
     ops = ops.map do |op|
       case op.first
