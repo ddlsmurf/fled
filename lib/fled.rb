@@ -5,7 +5,7 @@ module FlEd
   require 'fled/file_listing'
   require 'fled/file_listing_builder'
 
-  VERSION = '0.0.2'
+  VERSION = '0.0.3'
 
   # Convert file listing operation list
   # to bash-script friendly script

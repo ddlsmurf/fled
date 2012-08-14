@@ -309,6 +309,10 @@ readme do
       'Meta: Travis-CI integration',
     ],
     'v0.0.3' => [
+      'New: Interactive mode with `-u`',
+      'New: Error and warning reporting with line numbers',
+      'New: Default configuration file at `~/.fled.yaml`',
+      'New: Editor and diff tool are configurable from configuration files',
       'Meta: Refactoring of code',
     ],
   }).sort { |a, b| b[0] <=> a[0] }.each do |version, changes|

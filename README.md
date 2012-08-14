@@ -593,6 +593,10 @@ sub_sub_folder/  :2
 
 *Version v0.0.3*
 
+- New: Interactive mode with `-u`
+- New: Error and warning reporting with line numbers
+- New: Default configuration file at `~/.fled.yaml`
+- New: Editor and diff tool are configurable from configuration files
 - Meta: Refactoring of code
 
 *Version v0.0.2*
