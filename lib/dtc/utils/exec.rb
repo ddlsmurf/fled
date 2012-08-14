@@ -24,8 +24,19 @@ module DTC
     class Exec
       class << self
         def sys *opts
-          system(opts.flatten.map {|e| Shellwords::shellescape(e.to_s)}.join(" "))
-          raise "External command error" unless $?.success?
+          options = {}
+          if opts.last.is_a?(Hash)
+            options = opts.pop
+          end
+          arguments = Shellwords.join(opts.flatten.map(&:to_s).to_a)
+          if options[:capture_stdout]
+            result = `#{arguments}`
+          else
+            system(arguments)
+            result = $?.exitstatus
+          end
+          raise "External command error: #{arguments}" unless options[:ignore_exit_code] || $?.success?
+          result
         end
         def sys_in cwd, *opts
           Dir.chdir cwd { sys(*opts) }

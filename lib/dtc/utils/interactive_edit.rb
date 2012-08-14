@@ -43,6 +43,16 @@ module DTC::Utils
     def edit_file_interactively(filename)
       Exec.sys(@editor, filename)
     end
+    def self.with_temp_file base_name, extension, content, &block # :yields: temp_filename
+      file = Tempfile.new([base_name, extension])
+      begin
+        file << content
+        file.close
+        yield file.path
+      ensure
+        file.unlink
+      end
+    end
     def edit_interactively(content)
       unless @file
         @file = Tempfile.new(["#{File.basename(__FILE__, File.extname(__FILE__))}-edit", @extension])
