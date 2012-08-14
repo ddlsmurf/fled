@@ -27,6 +27,12 @@ class App
       DEFAULT_SKIP_FOLDERS_RX +
       DEFAULT_SKIP_FOLDERS.map { |e| '\A' + Regexp.escape(e) + '\z' },
   }
+  OPTIONS_THAT_AFFECT_SCANNING = [
+    :max_depth,
+    :excluded, :excluded_directories, :excluded_files,
+    :included, :included_directories, :included_files,
+  ]
+  OPTIONS_THAT_CANT_CHANGE_DURING_INTERACTIVE_RUN = [ :interactive ]
   EXIT_REASONS = {
     :nothing_to_list => ["No files/folders found", 1],
     :nothing_edited => ["No changes", 2],
@@ -34,6 +40,7 @@ class App
     :invalid_options => ["Error parsing arguments", 127, :print_usage],
   }
   MAIN_MENU_OPTIONS = {
+    :reconfigure => "Re-sca(n)",
     :edit_listing => "(E)dit listing",
     :abort => "(A)bort",
   }
@@ -50,6 +57,10 @@ class App
     :revert_script => "(R)evert script and edit",
     :return => "(D)iscard edited script",
     :abort => "(A)bort",
+  }
+  CONFIRM_MENU_OPTIONS_FOR_RESCAN = {
+    :yes => "(Y)es, loose any edits and uids and rescan",
+    :no => "(N)o, cancel",
   }
   attr_reader :options
 
@@ -93,10 +104,14 @@ class App
       @operations = []
     end
 
+    def update_operations! edited_listing = @edited_listing
+      @operations = ops_for_edited_listing(@listing, @listing_text, edited_listing)
+    end
+
     def edit_listing!
       edited_listing = DTC::Utils::InteractiveEditor::edit(@edited_listing || @listing_text, ".yaml", @options[:editor])
       @edited_listing = edited_listing unless edited_listing.to_s.strip == ""
-      @operations = ops_for_edited_listing(@listing, @listing_text, edited_listing)
+      update_operations! edited_listing
       interactive_print_status
     end
 
@@ -174,6 +189,28 @@ class App
       @edited_listing = nil
       @operations = []
       edit_listing!
+    end
+
+    def interactive_reconfigure
+      new_options = @options.dup
+      OPTIONS_THAT_CANT_CHANGE_DURING_INTERACTIVE_RUN.each { |o| new_options.delete(o) }
+      new_options = DTC::Utils::InteractiveEditor::edit_in_yaml(new_options, @options[:editor])
+      unless new_options.is_a?(Hash)
+        status "Error, configuration must be a hash table, got #{new_options.inspect}" if new_options
+        return
+      end
+      OPTIONS_THAT_CANT_CHANGE_DURING_INTERACTIVE_RUN.each { |o| new_options.delete(o) }
+      if OPTIONS_THAT_AFFECT_SCANNING.any? { |k| new_options[k] != @options[k] }
+        return unless @operations.count == 0 || ask_user(CONFIRM_MENU_OPTIONS_FOR_RESCAN) == :yes
+        @options = @options.merge(new_options)
+        status "Config updated"
+        update_listing!
+        edit_listing!
+      else
+        @options = @options.merge(new_options)
+        update_operations!
+        status "Config updated"
+      end
     end
 
     def interactive_main_menu
