@@ -70,7 +70,11 @@ module DTC
             next if f == "." || f == ".."
             if File.directory? full_path
               return unless File.readable?(path)
-              self.accept_path(visitor, full_path, max_depth - 1) unless max_depth == 0
+              if max_depth == 0
+                visitor.leave if visitor.enter(full_path)
+              else
+                self.accept_path(visitor, full_path, max_depth - 1)
+              end
             else
               visitor.add f, full_path
             end
