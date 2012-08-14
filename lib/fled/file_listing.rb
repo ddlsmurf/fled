@@ -5,7 +5,9 @@ module FlEd
     def initialize
       @objects_by_id = {}
       @objects = []
+      @errors = []
     end
+    attr_accessor :errors
     RELATION_KEYS = [:parent]
     def dup
       result = self.class.new
@@ -64,7 +66,15 @@ module FlEd
         if (dir = name[-1..-1] == "/")
           name = name[0..-2]
         end
-        current = objects.add($3, :name => name, :line => "#{$1}#{$2}")
+        current = nil
+        begin
+          current = objects.add($3, :name => name, :line => "#{$1}#{$2}")
+        rescue Exception => e
+          (objects.errors ||= []) << [:fail,
+            :duplicate_uid, {:name => name, :line_number => line_number + 1}
+          ]
+        end
+        next unless current
         current[:dir] = true if dir
         next if name.strip == "" # Ignore indent when there is no name - element will be deleted, parent isnt used
         if previous_indent && previous_indent != indent
@@ -97,7 +107,7 @@ module FlEd
     # - `[:renamed, [source path components], new name]`
     # - `[:rm, [path components], source_object]`
     def operations_from! source_listing
-      errors = []
+      op_errors = []
       operations = []
       pending_renames = []
       running_source = source_listing.dup
@@ -116,7 +126,7 @@ module FlEd
           source = running_source[target[:uid]]
           if !(target[:source] = source)
             target[:error] = true
-            errors += [[:fail, :no_such_uid, target]]
+            op_errors += [[:fail, :no_such_uid, target]]
             next
           end
           next if target[:name] == ""
@@ -164,7 +174,7 @@ module FlEd
         new_name = op[2]
         existing_names = running_source.children_of((target[:parent] || {})[:uid]).map { |o| o[:name] }
         if existing_names.any? { |n| n.casecmp(new_name) == 0 }
-          errors += [[:warn, :would_overwrite, target,
+          op_errors += [[:warn, :would_overwrite, target,
             running_source.path_of(target[:parent]).map { |o| o[:name] } + [new_name]]]
         else
           operations << [:renamed,
@@ -180,7 +190,7 @@ module FlEd
           operations << [operation, running_source.path_of(target[:source]).map { |o| o[:name] }, target[:source]]
         end
       end
-      errors + operations
+      errors + op_errors + operations
     end
     def has_child? parent, child
       while child = child[:parent]
