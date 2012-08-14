@@ -41,8 +41,8 @@ class App
     :diff => "(D)iff",
     :edit_script => "Edit (s)cript",
     :print_preview => "(P)review script",
-    :quit => "Print script and (q)uit",
-    :revert_listing => "(R)evert listing",
+    :quit => "Print and (q)uit",
+    :revert_listing => "(R)evert",
   }
   MAIN_MENU_OPTIONS_AFTER_SCRIPT_EDIT = {
     :quit => "Print edited script and (q)uit",
@@ -71,9 +71,6 @@ class App
       update_listing!
       edit_listing!
       if @options[:interactive]
-        trap "SIGINT" do
-          interactive_abort
-        end
         interactive_main_menu
       else
         die! :nothing_edited if operations.empty?
@@ -100,6 +97,7 @@ class App
       edited_listing = DTC::Utils::InteractiveEditor::edit(@edited_listing || @listing_text, ".yaml", @options[:editor])
       @edited_listing = edited_listing unless edited_listing.to_s.strip == ""
       @operations = ops_for_edited_listing(@listing, @listing_text, edited_listing)
+      interactive_print_status
     end
 
     def print_script operations = @operations, preview = false
@@ -179,8 +177,10 @@ class App
     end
 
     def interactive_main_menu
+      trap "SIGINT" do
+        interactive_abort
+      end
       while true
-        interactive_print_status
         options = MAIN_MENU_OPTIONS
         options = options.merge(MAIN_MENU_OPTIONS_WITH_OPERATIONS) unless @operations.empty?
         cmd = ask_user(options)
@@ -328,7 +328,7 @@ class App
     end
 
     def print_prompt options
-      status_raw "=> #{options.values.join(" | ")} ? "
+      status_raw "=> #{options.values.join(", ")} ? "
     end
 
     def print_prompt_error options, error
@@ -336,7 +336,7 @@ class App
       print_prompt options
     end
 
-    def ask_user options = MAIN_MENU_OPTIONS
+    def ask_user options = {}
       keys = {}
       options.each_pair { |k, v|
         keys[v =~ /\((.)\)/ && $1.downcase] = k
