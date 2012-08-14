@@ -14,6 +14,7 @@ class App
   DEFAULT_SKIP_FOLDERS = ['.svn', '_svn', '.git', 'CVS', '.hg']
   DEFAULT_SKIP_FILES_RX = ['^\..*', '.*~$']
   DEFAULT_SKIP_FILES = [".DS_Store", "Thumbs.db", "Temporary Items"]
+  DEFAULT_OPTIONS_PATH = "~/.fled.yaml"
   DEFAULT_OPTIONS = {
     :max_depth => -1,
     :interactive => true,
@@ -239,7 +240,12 @@ class App
     end
 
     def self.default_options
-      DEFAULT_OPTIONS
+      base = DEFAULT_OPTIONS || {}
+      if File.readable?(default_options_filename = File.expand_path(DEFAULT_OPTIONS_PATH))
+        data = File.open(default_options_filename) { |file| YAML.load(file) }
+        base = base.merge(data || {})
+      end
+      base
     end
 
     def parsed_options?
@@ -273,7 +279,8 @@ class App
         opts.on_tail('-l', '--load PATH.YAML', "Merge in the specified yaml files options")    { |file|
           File.open(file) { |file| options = options.merge(YAML.load(file)) }
         }
-        opts.on_tail('--options', "Show options as interpreted and exit without doing anything")    { options[:output_options] = true }
+        opts.on_tail('--options', "Show options as interpreted and exit without doing anything",
+          "Example: #{$0} --options > #{File.expand_path(DEFAULT_OPTIONS_PATH)}")    { options[:output_options] = true }
         opts.on('-v', '--verbose', "Display more information about what the tool is doing...")    { options[:verbose] = true }
         opts.on_tail('--version', "Show version of this tool")    { output_version ; exit 0 }
         opts.on_tail('-h', '--help', "Show this help message")       { output_help ; exit 0 }
