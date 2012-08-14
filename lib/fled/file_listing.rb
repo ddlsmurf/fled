@@ -176,7 +176,8 @@ module FlEd
       end
       self.depth_first do |target, path|
         if target[:name] == ""
-          operations << [:rm, running_source.path_of(target[:source]).map { |o| o[:name] }, target[:source]]
+          operation = target[:source][:dir] ? :rmdir : :rm
+          operations << [operation, running_source.path_of(target[:source]).map { |o| o[:name] }, target[:source]]
         end
       end
       errors + operations
