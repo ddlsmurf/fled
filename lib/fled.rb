@@ -18,18 +18,28 @@ module FlEd
         [:mv, File.join(op[1]), File.join(op[2])]
       when :renamed
         [:mv, File.join(op[1]), File.join((op[1].empty? ? [] : op[1][0..-2]) + [op[2]])]
-      when :rm
-        [op[2][:dir] ? :rmdir : :rm , File.join(op[1])]
+      when :rm, :rmdir
+        [op.first , File.join(op[1])]
       else
         op
       end
     end
     warnings, operations = *ops.partition { |e| e.first == :warn }
+    errors, operations = *operations.partition { |e| e.first == :fail }
     result = []
+    unless errors.empty?
+      result += ["# Error:"]
+      errors.each do |error|
+        line = error[2][:line_number]
+        result += ["#  - line #{line}: #{error[1]}"]
+      end
+      result += ['', 'exit 1 # There are errors to check first !', '']
+    end
     unless warnings.empty?
-      result = ["# Warning:"]
+      result += ["# Warning:"]
       warnings.each do |warning|
-        result += ["#  - #{warning[1]}: #{File.join(warning[2][:source][:path], warning[3])}"]
+        line = warning[2][:line_number]
+        result += ["#  - line #{line}: #{warning[1]}: #{File.join(warning[3])}"]
       end
       result += ['', 'exit 1 # There are warnings to check first !', '']
     end

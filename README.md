@@ -71,38 +71,107 @@ Add options to a command (`mkdir`, `mv`, `rm` or `rmdir`)
       folder_two/           :2
         file_three          :3
 
-Each line of the listing is in the format *`[indentation]`* *`[name]`* `:`*`[uid]`*
+Each line of the listing is in the format `[indentation] name: uid`
 
 - The *indentation* must consist of only spaces, and is used to indicate the parent folder
 - The *name* must not use colons (`:`). If it is cleared, it is assumed the file/folder is to be deleted
+  The *name* has a `/` appended if it is a directory.
 - The *uid* is used by FlEd to recognise the original of the edited line. Do not assume a *uid* does not
-  change between runs. It is valid only once.
+  change between runs. It is valid only for the current run. Spaces before the *uid* are only cosmetic.
 
 ## Operations
 ### Creating a new folder
 
 Add a new line (therefore with no uid):
 
-    folder/         :0
-      new_folder
-      folder_two/   :2
-
-Generates:
-
-    mkdir folder/new_folder
+<table>
+  <tr>
+    <th>
+      <em>Original listing</em>
+    </th>
+    <th>
+      <em>Edited listing</em>
+    </th>
+  </tr>
+  <tr>
+    <td>
+      <pre>
+  folder/                 :0
+    file_one              :1
+    folder_two/           :2
+      file_three          :3
+      </pre>
+    </td>
+    <td>
+      <pre>
+folder/         :0
+  new_folder
+  folder_two/   :2
+      </pre>
+    </td>
+  </tr>
+  <tr>
+    <th colspan='2'>
+      <em>Generates the script:</em>
+    </th>
+  </tr>
+  <tr>
+    <td colspan='2'>
+      <ul>
+        <li>
+          <code>mkdir folder/new_folder</code>
+        </li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 ### Moving
 
 Change the indentation and/or line order to change the parent of a file or folder:
 
-    folder/          :0
-      folder_two/    :2
-        file_one       :1
-        file_three   :3
-
-Generates:
-
-    mv folder/file_one folder/folder_two/file_one
+<table>
+  <tr>
+    <th>
+      <em>Original listing</em>
+    </th>
+    <th>
+      <em>Edited listing</em>
+    </th>
+  </tr>
+  <tr>
+    <td>
+      <pre>
+  folder/                 :0
+    file_one              :1
+    folder_two/           :2
+      file_three          :3
+      </pre>
+    </td>
+    <td>
+      <pre>
+folder/          :0
+  folder_two/    :2
+    file_one       :1
+    file_three   :3
+      </pre>
+    </td>
+  </tr>
+  <tr>
+    <th colspan='2'>
+      <em>Generates the script:</em>
+    </th>
+  </tr>
+  <tr>
+    <td colspan='2'>
+      <ul>
+        <li>
+          <code>mv folder/file_one folder/folder_two/file_one</code>
+        </li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 *Moving an item below itself or its children is not recommended, as the listing may not be exhaustive*
 
@@ -110,79 +179,293 @@ Generates:
 
 Edit the name while preserving the uid to rename the item
 
-    folder_renamed/  :0
-      file_one       :1
-      folder_two/    :2
-        file_changed :3
-
-Generates:
-
-    mv folder folder_renamed
-    mv folder_renamed/folder_two/file_three folder_renamed/folder_two/file_changed
-
-*Swapping file names may not work in cases where the generated intermediary file exists but was not included in the listing*
+<table>
+  <tr>
+    <th>
+      <em>Original listing</em>
+    </th>
+    <th>
+      <em>Edited listing</em>
+    </th>
+  </tr>
+  <tr>
+    <td>
+      <pre>
+  folder/                 :0
+    file_one              :1
+    folder_two/           :2
+      file_three          :3
+      </pre>
+    </td>
+    <td>
+      <pre>
+folder_renamed/  :0
+  file_one       :1
+  folder_two/    :2
+    file_changed :3
+      </pre>
+    </td>
+  </tr>
+  <tr>
+    <th colspan='2'>
+      <em>Generates the script:</em>
+    </th>
+  </tr>
+  <tr>
+    <td colspan='2'>
+      <ul>
+        <li>
+          <code>mv folder folder_renamed</code>
+        </li>
+        <li>
+          <code>mv folder_renamed/folder_two/file_three folder_renamed/folder_two/file_changed</code>
+        </li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 ### Deleting
 
 Clear a name but leave the uid to delete that item
 
-    folder_renamed/  :0
-      :1
-      :2
-      :3
-
-Generates:
-
-    mv folder folder_renamed
-    rm folder_renamed/folder_two/file_three
-    rm folder_renamed/file_one
-    rmdir folder_renamed/folder_two
+<table>
+  <tr>
+    <th>
+      <em>Original listing</em>
+    </th>
+    <th>
+      <em>Edited listing</em>
+    </th>
+  </tr>
+  <tr>
+    <td>
+      <pre>
+  folder/                 :0
+    file_one              :1
+    folder_two/           :2
+      file_three          :3
+      </pre>
+    </td>
+    <td>
+      <pre>
+folder_renamed/  :0
+  :1
+  :2
+  :3
+      </pre>
+    </td>
+  </tr>
+  <tr>
+    <th colspan='2'>
+      <em>Generates the script:</em>
+    </th>
+  </tr>
+  <tr>
+    <td colspan='2'>
+      <ul>
+        <li>
+          <code>mv folder folder_renamed</code>
+        </li>
+        <li>
+          <code>rm folder_renamed/folder_two/file_three</code>
+        </li>
+        <li>
+          <code>rm folder_renamed/file_one</code>
+        </li>
+        <li>
+          <code>rmdir folder_renamed/folder_two</code>
+        </li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 ### No-op
 
 If a line (and all child-lines) is removed from the listing, it will have no operation.
 
-    folder/          :0
-
-Generates:
-*No operation*
+<table>
+  <tr>
+    <th>
+      <em>Original listing</em>
+    </th>
+    <th>
+      <em>Edited listing</em>
+    </th>
+  </tr>
+  <tr>
+    <td>
+      <pre>
+  folder/                 :0
+    file_one              :1
+    folder_two/           :2
+      file_three          :3
+      </pre>
+    </td>
+    <td>
+      <pre>
+folder/          :0
+      </pre>
+    </td>
+  </tr>
+  <tr>
+    <th colspan='2'>
+      <em>Generates the script:</em>
+    </th>
+  </tr>
+  <tr>
+    <td colspan='2'>
+      <em>No operation</em>
+    </td>
+  </tr>
+</table>
 
 *Note that removing a folder without removing its children will move its children:*
 
-    folder/          :0
-      file_one       :1
-      file_three   :3
-
-Generates:
-
-    mv folder/folder_two/file_three folder/file_three
-
+<table>
+  <tr>
+    <th>
+      <em>Original listing</em>
+    </th>
+    <th>
+      <em>Edited listing</em>
+    </th>
+  </tr>
+  <tr>
+    <td>
+      <pre>
+  folder/                 :0
+    file_one              :1
+    folder_two/           :2
+      file_three          :3
+      </pre>
+    </td>
+    <td>
+      <pre>
+folder/          :0
+  file_one       :1
+  file_three   :3
+      </pre>
+    </td>
+  </tr>
+  <tr>
+    <th colspan='2'>
+      <em>Generates the script:</em>
+    </th>
+  </tr>
+  <tr>
+    <td colspan='2'>
+      <ul>
+        <li>
+          <code>mv folder/folder_two/file_three folder/file_three</code>
+        </li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 If an indent is forgotten:
 
-    folder/          :0
-      file_one       :1
-        file_three   :3
-
-Generates:
-
-    mv folder/folder_two/file_three folder/file_three
+<table>
+  <tr>
+    <th>
+      <em>Original listing</em>
+    </th>
+    <th>
+      <em>Edited listing</em>
+    </th>
+  </tr>
+  <tr>
+    <td>
+      <pre>
+  folder/                 :0
+    file_one              :1
+    folder_two/           :2
+      file_three          :3
+      </pre>
+    </td>
+    <td>
+      <pre>
+folder/          :0
+  file_one       :1
+    file_three   :3
+      </pre>
+    </td>
+  </tr>
+  <tr>
+    <th colspan='2'>
+      <em>Generates the script:</em>
+    </th>
+  </tr>
+  <tr>
+    <td colspan='2'>
+      <ul>
+        <li>
+          <code>mv folder/folder_two/file_three folder/file_three</code>
+        </li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 ### All together
 
-    folder_new/          :0
-      new_folder/
-        first    :1
-        second   :3
-      :2
-
-Generates:
-
-    mv folder folder_new
-    mkdir folder_new/new_folder
-    mv folder_new/file_one folder_new/new_folder/first
-    mv folder_new/folder_two/file_three folder_new/new_folder/second
-    rmdir folder_new/folder_two
+<table>
+  <tr>
+    <th>
+      <em>Original listing</em>
+    </th>
+    <th>
+      <em>Edited listing</em>
+    </th>
+  </tr>
+  <tr>
+    <td>
+      <pre>
+  folder/                 :0
+    file_one              :1
+    folder_two/           :2
+      file_three          :3
+      </pre>
+    </td>
+    <td>
+      <pre>
+folder_new/          :0
+  new_folder/
+    first    :1
+    second   :3
+  :2
+      </pre>
+    </td>
+  </tr>
+  <tr>
+    <th colspan='2'>
+      <em>Generates the script:</em>
+    </th>
+  </tr>
+  <tr>
+    <td colspan='2'>
+      <ul>
+        <li>
+          <code>mv folder folder_new</code>
+        </li>
+        <li>
+          <code>mkdir folder_new/new_folder</code>
+        </li>
+        <li>
+          <code>mv folder_new/file_one folder_new/new_folder/first</code>
+        </li>
+        <li>
+          <code>mv folder_new/folder_two/file_three folder_new/new_folder/second</code>
+        </li>
+        <li>
+          <code>rmdir folder_new/folder_two</code>
+        </li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 ## Edge cases
 
@@ -196,15 +479,54 @@ These sort-of work, but are still rather experimental
 
 When applying
 
-    folder/        :0
-      file_two   :1
-      file_one   :2
+<table>
+  <tr>
+    <th>
+      <em>Original listing</em>
+    </th>
+    <th>
+      <em>Edited listing</em>
+    </th>
+  </tr>
+  <tr>
+    <td>
+      <pre>
+  folder/             :0
+    file_one          :1
+    file_two          :2
+      </pre>
+    </td>
+    <td>
+      <pre>
+folder/        :0
+  file_two   :1
+  file_one   :2
+      </pre>
+    </td>
+  </tr>
+  <tr>
+    <th colspan='2'>
+      <em>Generates the script:</em>
+    </th>
+  </tr>
+  <tr>
+    <td colspan='2'>
+      <ul>
+        <li>
+          <code>mv folder/file_two folder/file_one.tmp</code>
+        </li>
+        <li>
+          <code>mv folder/file_one folder/file_two</code>
+        </li>
+        <li>
+          <code>mv folder/file_one.tmp folder/file_one</code>
+        </li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
-Generates:
-
-    mv folder/file_two folder/file_one.tmp
-    mv folder/file_one folder/file_two
-    mv folder/file_one.tmp folder/file_one
+*Swapping file names may not work in cases where the generated intermediary file exists but was not included in the listing*
 
 ### Tree swapping
 
@@ -215,19 +537,63 @@ Generates:
 
 When applying
 
-    sub_sub_folder/  :2
-      sub_folder/        :1
-        folder/              :0
-          file.txt       :3
-
-Generates:
-
-    mv folder/sub_folder/sub_sub_folder sub_sub_folder
-    mv folder/sub_folder sub_sub_folder/sub_folder
-    mv folder sub_sub_folder/sub_folder/folder
-    mv sub_sub_folder/file.txt sub_sub_folder/sub_folder/folder/file.txt
+<table>
+  <tr>
+    <th>
+      <em>Original listing</em>
+    </th>
+    <th>
+      <em>Edited listing</em>
+    </th>
+  </tr>
+  <tr>
+    <td>
+      <pre>
+  folder/                      :0
+    sub_folder/                :1
+      sub_sub_folder/          :2
+        file.txt               :3
+      </pre>
+    </td>
+    <td>
+      <pre>
+sub_sub_folder/  :2
+  sub_folder/        :1
+    folder/              :0
+      file.txt       :3
+      </pre>
+    </td>
+  </tr>
+  <tr>
+    <th colspan='2'>
+      <em>Generates the script:</em>
+    </th>
+  </tr>
+  <tr>
+    <td colspan='2'>
+      <ul>
+        <li>
+          <code>mv folder/sub_folder/sub_sub_folder sub_sub_folder</code>
+        </li>
+        <li>
+          <code>mv folder/sub_folder sub_sub_folder/sub_folder</code>
+        </li>
+        <li>
+          <code>mv folder sub_sub_folder/sub_folder/folder</code>
+        </li>
+        <li>
+          <code>mv sub_sub_folder/file.txt sub_sub_folder/sub_folder/folder/file.txt</code>
+        </li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 ## Changelog
+
+*Version v0.0.3*
+
+- Meta: Refactoring of code
 
 *Version v0.0.2*
 

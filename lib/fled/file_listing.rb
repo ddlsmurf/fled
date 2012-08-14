@@ -56,7 +56,7 @@ module FlEd
       previous_indent = nil
       previous = nil
       stack = []
-      listing.split("\n").each do |line|
+      listing.split("\n").each_with_index do |line, line_number|
         next if line.strip.empty?
         raise RuntimeError, "Unparsable line #{line.inspect}" unless line =~ /^((?: )*)(.*?)(?::(\d+))?\r?$/
         indent = $1
@@ -74,6 +74,7 @@ module FlEd
             stack.pop
           end
         end
+        current[:line_number] = line_number + 1
         current[:parent] = stack.last if stack.count > 0
         previous = current
         previous_indent = indent
@@ -163,7 +164,8 @@ module FlEd
         new_name = op[2]
         existing_names = running_source.children_of((target[:parent] || {})[:uid]).map { |o| o[:name] }
         if existing_names.any? { |n| n.casecmp(new_name) == 0 }
-          errors += [[:warn, :would_overwrite, target, new_name]]
+          errors += [[:warn, :would_overwrite, target,
+            running_source.path_of(target[:parent]).map { |o| o[:name] } + [new_name]]]
         else
           operations << [:renamed,
             running_source.path_of(target).map { |o| o[:name] },
