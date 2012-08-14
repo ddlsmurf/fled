@@ -14,9 +14,41 @@ class App
   DEFAULT_SKIP_FOLDERS = ['.svn', '_svn', '.git', 'CVS', '.hg']
   DEFAULT_SKIP_FILES_RX = ['^\..*', '.*~$']
   DEFAULT_SKIP_FILES = [".DS_Store", "Thumbs.db", "Temporary Items"]
+  DEFAULT_OPTIONS = {
+    :max_depth => -1,
+    :interactive => true,
+    :verbose => false,
+    :diff_command => %w[diff -uda],
+    :excluded_files =>
+      DEFAULT_SKIP_FILES_RX +
+      DEFAULT_SKIP_FILES.map { |e| '\A' + Regexp.escape(e) + '\z' },
+    :excluded_directories =>
+      DEFAULT_SKIP_FOLDERS_RX +
+      DEFAULT_SKIP_FOLDERS.map { |e| '\A' + Regexp.escape(e) + '\z' },
+  }
   EXIT_REASONS = {
     :nothing_to_list => ["No files/folders found", 1],
-    :nothing_edited => ["No changes - aborting", 2],
+    :nothing_edited => ["No changes", 2],
+    :user_abort => ["User abort", 126],
+    :invalid_options => ["Error parsing arguments", 127, :print_usage],
+  }
+  MAIN_MENU_OPTIONS = {
+    :edit_listing => "(E)dit listing",
+    :abort => "(A)bort",
+  }
+  MAIN_MENU_OPTIONS_WITH_OPERATIONS = {
+    :diff => "(D)iff",
+    :edit_script => "Edit (s)cript",
+    :print_preview => "(P)review script",
+    :quit => "Print script and (q)uit",
+    :revert_listing => "(R)evert listing",
+  }
+  MAIN_MENU_OPTIONS_AFTER_SCRIPT_EDIT = {
+    :quit => "Print edited script and (q)uit",
+    :edit_script => "(E)dit script",
+    :revert_script => "(R)evert script and edit",
+    :return => "(D)iscard edited script",
+    :abort => "(A)bort",
   }
   attr_reader :options
 
@@ -24,6 +56,8 @@ class App
     @arguments = arguments.dup
     @options = {}
     @options[:verbose] = false
+    @edited_listing = nil
+    @operations = []
   end
 
   def run
@@ -33,41 +67,179 @@ class App
         exit 0
       end
       output_version if @options[:verbose]
-      info "Starting on path #{@base_path} at #{DateTime.now}"
-      builder = FlEd::FileListingBuilder.new()
-      DTC::Utils::Visitor::Folder::accept builder, @base_path, @options
-      listing_text = builder.listing.to_s
-      die! :nothing_to_list if listing_text == ""
-      edited_listing = DTC::Utils::InteractiveEditor::edit(listing_text, ".yaml")
-      die! :nothing_edited if edited_listing.to_s.strip == "" || edited_listing == listing_text
-      target_listing = FlEd::FileListing.parse(edited_listing)
-      ops = target_listing.operations_from!(builder.listing)
-      die! :nothing_edited if ops.empty?
-      ops = [[:pushd, @base_path]] + ops + [[:popd]] unless @options[:no_pushd]
-      puts FlEd::operation_list_to_bash(ops).join("\n")
-      info "\nFinished at #{DateTime.now}"
+      update_listing!
+      edit_listing!
+      if @options[:interactive]
+        trap "SIGINT" do
+          interactive_abort
+        end
+        interactive_main_menu
+      else
+        die! :nothing_edited if operations.empty?
+        print_script
+      end
     else
       output_usage
     end
   rescue SystemExit => e
     raise
-  rescue Exception => e
-    puts e
-    output_usage
-    exit 127
+  rescue OptionParser::ParseError => e
+    die! :invalid_options, e.to_s
   end
+
   protected
+    def update_listing!
+      @listing = scan_path_into_listing(@base_path)
+      @listing_text = @listing.to_s
+      @edited_listing = nil
+      @operations = []
+    end
+
+    def edit_listing!
+      edited_listing = DTC::Utils::InteractiveEditor::edit(@edited_listing || @listing_text, ".yaml")
+      @edited_listing = edited_listing unless edited_listing.to_s.strip == ""
+      @operations = ops_for_edited_listing(@listing, @listing_text, edited_listing)
+    end
+
+    def print_script operations = @operations, preview = false
+      indentation = preview ? "    " : ""
+      script = operations.is_a?(String) ? operations : script_for_operations(operations, indentation)
+      if preview
+        status script
+      else
+        print_output script
+      end
+    end
+
+    def send_interactive_command command, *args
+      __send__("interactive_#{command}".to_sym, *args)
+    end
+
+    def interactive_abort
+      die! :user_abort
+    end
+
+    def interactive_quit script = @operations
+      print_script script, false
+      exit 0
+    end
+
+    def interactive_print_preview
+      print_script(@operations, true)
+    end
+
+    def interactive_print_status
+      if @operations.empty?
+        status :nothing_edited
+      else
+        status "#{@operations.count} operation#{@operations.count != 1 ? 's' : ''}"
+        counted_operations = { :fail => "error", :warn => "warning" }
+        if @options[:verbose]
+          counted_operations = counted_operations.merge(
+            :moved => "move",
+            :renamed => "rename",
+            :rm => "deleted file",
+            :rmdir => "deleted folder",
+            :mk => "new folder"
+          )
+        end
+        if @operations.any? { |op| counted_operations[op.first] }
+          counted_operations.each_pair do |op_key, label|
+            count = @operations.select { |op| op.first == op_key }.count
+            status " #{count} #{label}#{count != 1 ? "s" : ""}" if count > 0
+          end
+        end
+      end
+    end
+
+    def interactive_diff # => "(D)iff"
+      if @edited_listing.to_s.strip == ""
+        status "No edited listing"
+      else
+        DTC::Utils::InteractiveEditor::with_temp_file "Original", ".yaml", @listing_text do |original|
+        DTC::Utils::InteractiveEditor::with_temp_file "Edited", ".yaml", @edited_listing do |edited|
+          status DTC::Utils::Exec::sys(*(@options[:diff_command] + [original, edited, {
+            :ignore_exit_code => true,
+            :capture_stdout => true
+          }]))
+        end
+        end
+      end
+    end
+
+    def interactive_edit_listing # => "(E)dit listing"
+      edit_listing!
+    end
+
+    def interactive_revert_listing # => "(R)evert listing"
+      @edited_listing = nil
+      @operations = []
+      edit_listing!
+    end
+
+    def interactive_main_menu
+      while true
+        interactive_print_status
+        options = MAIN_MENU_OPTIONS
+        options = options.merge(MAIN_MENU_OPTIONS_WITH_OPERATIONS) unless @operations.empty?
+        cmd = ask_user(options)
+        send_interactive_command cmd
+      end
+    end
+
+    def interactive_edit_script original = script_for_operations(@operations), script = original
+      while true
+        result = DTC::Utils::InteractiveEditor::edit(script, ".sh")
+        unless result.strip == "" || result == original
+          script = result
+          result = ask_user MAIN_MENU_OPTIONS_AFTER_SCRIPT_EDIT
+          case result
+            when :quit, :abort
+              send_interactive_command result, result
+            when :edit_script
+              redo
+            when :revert_script
+              script = script_for_operations(@operations)
+            when :return
+              return
+          end
+        else
+          info "Empty/unchanged script"
+          return
+        end
+      end
+    end
+
+    def scan_path_into_listing base_path = @base_path
+      info "Scanning path #{@base_path} at #{DateTime.now}"
+      builder = FlEd::FileListingBuilder.new()
+      DTC::Utils::Visitor::Folder::accept builder, base_path, @options
+      info "\nFinished at #{DateTime.now}"
+      listing = builder.listing
+      die! :nothing_to_list if listing.count.zero?
+      listing
+    end
+
+    def ops_for_edited_listing listing = @listing, listing_text = @listing_text, edited_listing = @edited_listing
+      return [] if edited_listing.to_s.strip == "" || edited_listing == listing_text
+      begin
+        target_listing = FlEd::FileListing.parse(edited_listing)
+        ops = target_listing.operations_from!(listing)
+      rescue RuntimeError => e
+        ops = [[:fail, "Error parsing line: #{e.message}"]]
+        info e.inspect
+      end
+      return [] if ops.empty?
+      return ops if ops.count == 1 && ops[0][0] == :fail
+      @options[:no_pushd] ? ops : ([[:pushd, @base_path]] + ops + [[:popd]])
+    end
+
+    def script_for_operations operations, line_prefix = ""
+      line_prefix + FlEd::operation_list_to_bash(operations).join("\n#{line_prefix}")
+    end
 
     def self.default_options
-      ({
-        :max_depth => -1,
-        :excluded_files =>
-          DEFAULT_SKIP_FILES_RX +
-          DEFAULT_SKIP_FILES.map { |e| '\A' + Regexp.escape(e) + '\z' },
-        :excluded_directories =>
-          DEFAULT_SKIP_FOLDERS_RX +
-          DEFAULT_SKIP_FOLDERS.map { |e| '\A' + Regexp.escape(e) + '\z' },
-      })
+      DEFAULT_OPTIONS
     end
 
     def parsed_options?
@@ -97,6 +269,7 @@ class App
 
         opts.separator ""
         opts.separator "General"
+        opts.on('-u', '--[no-]interactive', "Offer to continue editing the listing")    { |v| options[:interactive] = v }
         opts.on_tail('-l', '--load PATH.YAML', "Merge in the specified yaml files options")    { |file|
           File.open(file) { |file| options = options.merge(YAML.load(file)) }
         }
@@ -112,10 +285,10 @@ class App
       true
     end
     
-    def output_options out = $stdout
+    def output_options
       opts = @options.dup
       opts.delete(:output_options)
-      out.puts opts.to_yaml
+      print_output opts.to_yaml
     end
     
     def output_help
@@ -146,18 +319,76 @@ class App
       status "#{File.basename(__FILE__)} version #{FlEd::VERSION}"
     end
 
+    def print_prompt options
+      status_raw "=> #{options.values.join(" | ")} ? "
+    end
+
+    def print_prompt_error options, error
+      status "  ! #{error}"
+      print_prompt options
+    end
+
+    def ask_user options = MAIN_MENU_OPTIONS
+      keys = {}
+      options.each_pair { |k, v|
+        keys[v =~ /\((.)\)/ && $1.downcase] = k
+      }
+      print_prompt options
+      until keys[(response_key = readline.downcase.strip)]
+        if response_key == ""
+          message = "please enter one of: #{keys.keys.sort.map(&:inspect).join(", ")}"
+        else
+          message = "didn't understand #{response_key.inspect}"
+        end
+        print_prompt_error options, message
+      end
+      keys[response_key]
+    end
+
+    def readline
+      result = $stdin.readline.chomp
+      @on_incomplete_line = false
+      result
+    end
+
+    def status_raw message
+      $stderr.print message
+      $stderr.flush
+      @on_incomplete_line = !(message.length > 0 && message[-1..-1] == "\n")
+    end
+
+    def print_output message
+      if @on_incomplete_line
+        $stderr.puts ""
+        @on_incomplete_line = false
+      end
+      $stdout.puts message
+    end
+
     def status message
+      if @on_incomplete_line
+        $stderr.puts ""
+        @on_incomplete_line = false
+      end
+      message = EXIT_REASONS[message][0] if message.is_a?(Symbol)
       $stderr.puts message
     end
+
     def info message
       status message if @options[:verbose]
     end
-    def die! reason, exit_code = 1
+
+    def die! reason, suffix_text = nil
+      exit_code = 1
+      print_usage = false
       if (message = EXIT_REASONS[reason])
-        exit_code = message[1] if exit_code == 1
+        print_usage = message[2] if message[2]
+        exit_code = message[1] if message[1]
         reason = message[0]
       end
+      reason = "#{reason}: #{suffix_text}" if suffix_text
       status reason
+      output_usage if print_usage
       exit exit_code
     end
 end
