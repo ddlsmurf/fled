@@ -59,8 +59,8 @@ class TestFS
         [:mv, File.join(op[1]), File.join(op[2])]
       when :renamed
         [:mv, File.join(op[1]), File.join((op[1].empty? ? [] : op[1][0..-2]) + [op[2]])]
-      when :rm
-        [op[2][:dir] ? :rmdir : :rm , File.join(op[1])]
+      when :rm, :rmdir
+        [op.first, File.join(op[1])]
       else
         op
       end
