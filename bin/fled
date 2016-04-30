@@ -79,12 +79,13 @@ class App
         exit 0
       end
       output_version if @options[:verbose]
+      is_interactive = @options[:interactive]
       update_listing!
-      edit_listing!
-      if @options[:interactive]
+      edit_listing! is_interactive
+      if is_interactive
         interactive_main_menu
       else
-        die! :nothing_edited if operations.empty?
+        return die! :nothing_edited if @operations.empty?
         print_script
       end
     else
@@ -108,11 +109,11 @@ class App
       @operations = ops_for_edited_listing(@listing, @listing_text, edited_listing)
     end
 
-    def edit_listing!
+    def edit_listing! is_interactive
       edited_listing = DTC::Utils::InteractiveEditor::edit(@edited_listing || @listing_text, ".yaml", @options[:editor])
       @edited_listing = edited_listing unless edited_listing.to_s.strip == ""
       update_operations! edited_listing
-      interactive_print_status
+      interactive_print_status if is_interactive
     end
 
     def print_script operations = @operations, preview = false
@@ -182,13 +183,13 @@ class App
     end
 
     def interactive_edit_listing # => "(E)dit listing"
-      edit_listing!
+      edit_listing! true
     end
 
     def interactive_revert_listing # => "(R)evert listing"
       @edited_listing = nil
       @operations = []
-      edit_listing!
+      edit_listing! true
     end
 
     def interactive_reconfigure
@@ -205,7 +206,7 @@ class App
         @options = @options.merge(new_options)
         status "Config updated"
         update_listing!
-        edit_listing!
+        edit_listing! true
       else
         @options = @options.merge(new_options)
         update_operations!
