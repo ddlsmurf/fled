@@ -591,6 +591,11 @@ sub_sub_folder/  :2
 
 ## Changelog
 
+*Version v0.0.4*
+
+- New: Sort file listing (if gem naturalsort is installed, it is used too)
+- Fix: Non interactive run mode had a bug
+
 *Version v0.0.3*
 
 - New: Interactive mode with `-u`

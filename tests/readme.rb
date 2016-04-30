@@ -315,6 +315,10 @@ readme do
       'New: Editor and diff tool are configurable from configuration files',
       'Meta: Refactoring of code',
     ],
+    'v0.0.4' => [
+      'New: Sort file listing (if gem naturalsort is installed, it is used too)',
+      'Fix: Non interactive run mode had a bug',
+    ],
   }).sort { |a, b| b[0] <=> a[0] }.each do |version, changes|
     em "Version #{version}"
     li *changes
