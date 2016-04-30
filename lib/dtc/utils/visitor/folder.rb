@@ -62,6 +62,19 @@ module DTC
           accept_path filter, File.expand_path(path), max_depth, (options[:sorted].nil? ? true : options[:sorted])
           visitor
         end
+
+        begin
+          require 'forwardable'
+          require 'natural_sort'
+          def self.string_compare a, b
+            NaturalSort.comparator(a, b)
+          end
+        rescue LoadError
+          def self.string_compare a, b
+            a.casecmp(b)
+          end
+        end
+
         def self.accept_path visitor, path, max_depth = -1, sorted
           return unless visitor.enter path
           dir = Dir.new(path)
@@ -69,7 +82,7 @@ module DTC
             dir = dir.each.to_a.sort do |a, b|
               a_is_dir = File.directory?(File.join(path, a))
               b_is_dir = File.directory?(File.join(path, b))
-              a_is_dir != b_is_dir ? (a_is_dir ? -1 : 1) : a.casecmp(b)
+              a_is_dir != b_is_dir ? (a_is_dir ? -1 : 1) : self.string_compare(a, b)
             end
           end
           dir.each do |f|
