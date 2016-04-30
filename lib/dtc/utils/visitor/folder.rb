@@ -59,12 +59,19 @@ module DTC
           max_depth = options.delete(:max_depth) { -1 }
           filter = options.empty? ? visitor :
             FilenameFilteringVisitor.new(visitor, options)
-          accept_path filter, File.expand_path(path), max_depth
+          accept_path filter, File.expand_path(path), max_depth, (options[:sorted].nil? ? true : options[:sorted])
           visitor
         end
-        def self.accept_path visitor, path, max_depth = -1
-          dir = Dir.new(path)
+        def self.accept_path visitor, path, max_depth = -1, sorted
           return unless visitor.enter path
+          dir = Dir.new(path)
+          if sorted
+            dir = dir.each.to_a.sort do |a, b|
+              a_is_dir = File.directory?(File.join(path, a))
+              b_is_dir = File.directory?(File.join(path, b))
+              a_is_dir != b_is_dir ? (a_is_dir ? -1 : 1) : a.casecmp(b)
+            end
+          end
           dir.each do |f|
             full_path = File.join(path, f)
             next if f == "." || f == ".."
@@ -73,7 +80,7 @@ module DTC
               if max_depth == 0
                 visitor.leave if visitor.enter(full_path)
               else
-                self.accept_path(visitor, full_path, max_depth - 1)
+                self.accept_path(visitor, full_path, max_depth - 1, sorted)
               end
             else
               visitor.add f, full_path
